@@ -1,6 +1,6 @@
 # SwapMarket
 
-This is a fork of the official Boltz Web App served at [boltz.exchange](https://boltz.exchange/), which allows non-custodial swaps between different layers of Bitcoin. It adds the ability to list backend APIs in addition to Boltz's, so that a user can get a better deal. 
+This is a fork of the official Boltz Web App served at [boltz.exchange](https://boltz.exchange/), which allows non-custodial swaps between different layers of Bitcoin. It adds the ability to list third parties' backend APIs in addition to Boltz's, so that a user can get a better deal. 
 
 Any node can now run [boltz-backend](https://github.com/BoltzExchange/boltz-backend) and compete with Boltz at [SwapMarket](https://swapmarket.github.io).
 
@@ -12,7 +12,7 @@ Boltz's [AGPL-3.0 license](https://github.com/BoltzExchange/boltz-web-app/blob/m
 
 ## Is this safe?
 
-Running a web app at Github Pages has an advantage of transparency. The code is hosted, built and deployed publicly. What you see is what you get. This is more transparent than the Boltz exchange itself.
+Running a web app at Github Pages has an advantage of transparency. The code is hosted, built and deployed publicly. What you see is what you get. Anyone can verify [attestation](https://github.com/SwapMarket/swapmarket.github.io/attestations) commit hash against the main branch. This is more transparent than the Boltz exchange itself.
 
 All the swaps are atomic. This means both legs will settle, or none at all. Your keys never leave your wallet, which makes the exchange non-custodial.
 
