@@ -23,6 +23,7 @@ export default defineConfig({
         https: true,
         cors: { origin: "*" },
     },
+    base: "/boltz",
     build: {
         commonjsOptions: {
             transformMixedEsModules: true,
