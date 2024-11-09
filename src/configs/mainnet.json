@@ -3,7 +3,7 @@
     "network": "mainnet",
     "loglevel": "debug",
     "apiUrl": {
-        "normal": "https://api.boltz.exchange",
+        "normal": "https://api.middleway.space",
         "tor": "http://boltzzzbnus4m7mta3cxmflnps4fp7dueu2tgurstbvrbt6xswzcocyd.onion/api"
     },
     "assets": {
