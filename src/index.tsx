@@ -40,12 +40,15 @@ const isEmbedded = () => {
     return useGlobalContext().embedded();
 };
 
+// change to publish to /testnet etc
+const base = "/boltz";
+
 const App = (props: RouteSectionProps) => {
     const [configError, setConfigError] = createSignal<boolean>(null);
 
     onMount(async () => {
         try {
-            const response = await fetch("/config.json");
+            const response = await fetch(base + "/config.json");
             const data = await response.json();
             setConfig(data);
             setConfigError(false);
@@ -86,7 +89,7 @@ const App = (props: RouteSectionProps) => {
 
 const cleanup = render(
     () => (
-        <Router root={App}>
+        <Router root={App} base={base}>
             <Route path="/" component={Hero} />
             <Route path="/swap" component={Create} />
             {/* Compatibility with link in Breez:
