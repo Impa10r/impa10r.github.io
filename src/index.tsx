@@ -41,7 +41,7 @@ const isEmbedded = () => {
 };
 
 // change to publish to /testnet etc
-const base = "/";
+const base = "";
 
 const App = (props: RouteSectionProps) => {
     const [configError, setConfigError] = createSignal<boolean>(null);
