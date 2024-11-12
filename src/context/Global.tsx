@@ -133,7 +133,7 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
             isMobile() ? "boltz_webapp_mobile" : "boltz_webapp_desktop",
         ),
         {
-            name: "ref",
+            name: config.network + "ref",
             ...stringSerializer,
         },
     );
@@ -226,7 +226,7 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
     });
 
     const logsForage = localforage.createInstance({
-        name: "logs",
+        name: config.network + "logs",
     });
 
     injectLogWriter(logsForage);
@@ -246,10 +246,10 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
     const clearLogs = () => logsForage.clear();
 
     const paramsForage = localforage.createInstance({
-        name: "params",
+        name: config.network + "params",
     });
     const swapsForage = localforage.createInstance({
-        name: "swaps",
+        name: config.network + "swaps",
     });
 
     migrateStorage(paramsForage, swapsForage).catch((e) =>
@@ -291,7 +291,7 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
     const clearSwaps = () => swapsForage.clear();
 
     const rdnsForage = localforage.createInstance({
-        name: "rdns",
+        name: config.network + "rdns",
     });
 
     const setRdns = (address: string, rdns: string) =>
@@ -319,7 +319,7 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
         // eslint-disable-next-line solid/reactivity
         createSignal<boolean>(false),
         {
-            name: "browserNotification",
+            name: config.network + "browserNotification",
         },
     );
 
@@ -327,7 +327,7 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
         // eslint-disable-next-line solid/reactivity
         createSignal<boolean>(false),
         {
-            name: "recklessMode",
+            name: config.network + "recklessMode",
         },
     );
 
