@@ -12,3 +12,4 @@ public/config.json
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+src/node_modules
