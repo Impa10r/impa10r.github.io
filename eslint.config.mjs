@@ -18,6 +18,7 @@ export default [
             "babel.config.js",
             "vite.config.mjs",
             "src/utils/dnssec/dnssec_prover*",
+            "playwright-report",
         ],
     },
     pluginJs.configs.recommended,

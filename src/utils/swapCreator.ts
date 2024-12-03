@@ -42,6 +42,7 @@ export type SwapBase = {
 export type SubmarineSwap = SwapBase &
     SubmarineCreatedResponse & {
         invoice: string;
+        preimage?: string;
         refundPrivateKey?: string;
     };
 
@@ -167,7 +168,9 @@ export const createChain = async (
     const res = await createChainSwap(
         assetSend,
         assetReceive,
-        Number(sendAmount),
+        sendAmount.isZero() || sendAmount.isNaN()
+            ? undefined
+            : Number(sendAmount),
         crypto.sha256(preimage).toString("hex"),
         claimKeys?.publicKey.toString("hex"),
         refundKeys?.publicKey.toString("hex"),
