@@ -25,6 +25,7 @@ import NotFound from "./pages/NotFound";
 import Pay from "./pages/Pay";
 import Refund from "./pages/Refund";
 import RefundEvm from "./pages/RefundEvm";
+import RefundExternal from "./pages/RefundExternal";
 import RefundStep from "./pages/RefundStep";
 import "./style/index.scss";
 import "./utils/patches";
@@ -63,7 +64,7 @@ const App = (props: RouteSectionProps) => {
     return (
         <Switch>
             <Match when={configError() === true}>
-                <div>Invalid or missing app configuration</div>
+                <h1>Invalid or missing app configuration</h1>
             </Match>
             <Match when={configError() === false}>
                 <GlobalProvider>
@@ -73,7 +74,10 @@ const App = (props: RouteSectionProps) => {
                                 <SwapChecker />
                                 <Chatwoot />
                                 <Show when={!isEmbedded()}>
-                                    <Nav network={config.network} />
+                                    <Nav
+                                        isPro={config.isPro}
+                                        network={config.network}
+                                    />
                                 </Show>
                                 {props.children}
                                 <Notification />
@@ -105,6 +109,8 @@ const cleanup = render(
             <Route path="/swap/refund/:id" component={RefundStep} />
             <Route path="/error" component={() => <Error />} />
             <Route path="/refund" component={Refund} />
+            <Route path="/refund/external" component={RefundExternal} />
+            <Route path="/refund/external/:type" component={RefundExternal} />
             <Route path="/history" component={History} />
             <Route path="*404" component={NotFound} />
         </Router>

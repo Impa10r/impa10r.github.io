@@ -25,6 +25,24 @@ const execCommand = async (command: string): Promise<string> => {
     }
 };
 
+const boltzCli = async (command: string): Promise<string> => {
+    try {
+        const { stdout, stderr } = await execAsync(
+            `docker exec boltz-backend boltz-cli ${command}`,
+            { shell: "/bin/bash" },
+        );
+
+        if (stderr) {
+            throw new Error(`Error executing command: ${stderr}`);
+        }
+
+        return stdout.trim();
+    } catch (error) {
+        console.error(`Failed to execute command: ${command}`, error);
+        throw error;
+    }
+};
+
 export const getBitcoinAddress = (): Promise<string> =>
     execCommand("bitcoin-cli-sim-client getnewaddress");
 
@@ -52,6 +70,9 @@ export const generateLiquidBlock = (): Promise<string> =>
 export const getBitcoinWalletTx = (txId: string): Promise<string> =>
     execCommand(`bitcoin-cli-sim-client gettransaction ${txId}`);
 
+export const getElementsWalletTx = (txId: string): Promise<string> =>
+    execCommand(`elements-cli-sim-client gettransaction ${txId}`);
+
 export const payInvoiceLnd = (invoice: string): Promise<string> =>
     execCommand(`lncli-sim 1 payinvoice -f ${invoice}`);
 
@@ -60,6 +81,18 @@ export const generateInvoiceLnd = async (amount: number): Promise<string> => {
         await execCommand(`lncli-sim 1 addinvoice --amt ${amount}`),
     ).payment_request as string;
 };
+
+export const addReferral = (name: string): Promise<string> =>
+    boltzCli(`addreferral ${name} 0`);
+
+export const getReferrals = async (): Promise<Record<string, unknown>> =>
+    JSON.parse(await boltzCli(`getreferrals`)) as Record<string, unknown>;
+
+export const setReferral = (
+    name: string,
+    config: Record<string, unknown>,
+): Promise<string> =>
+    boltzCli(`setreferral ${name} '${JSON.stringify(config)}'`);
 
 export const lookupInvoiceLnd = async (
     invoice: string,

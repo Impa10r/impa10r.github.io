@@ -16,6 +16,7 @@ import type { JSX } from "solid-js";
 
 import { config } from "../config";
 import { Denomination } from "../consts/Enums";
+import { referralIdKey } from "../consts/LocalStorage";
 import { swapStatusFinal } from "../consts/SwapStatus";
 import { detectLanguage } from "../i18n/detect";
 import dict, { DictKey } from "../i18n/i18n";
@@ -28,6 +29,8 @@ import { SomeSwap, SubmarineSwap } from "../utils/swapCreator";
 import { getUrlParam, isEmbed } from "../utils/urlParams";
 import { checkWasmSupported } from "../utils/wasmSupport";
 import { detectWebLNProvider } from "../utils/webln";
+
+const proReferral = "pro";
 
 export type GlobalContextType = {
     online: Accessor<boolean>;
@@ -97,6 +100,14 @@ export type GlobalContextType = {
     getRdnsForAddress: (address: string) => Promise<string | null>;
 };
 
+const defaultReferral = () => {
+    if (config.isPro) {
+        return proReferral;
+    }
+
+    return isMobile() ? "boltz_webapp_mobile" : "boltz_webapp_desktop";
+};
+
 // Local storage serializer to support the values created by the deprecated "createStorageSignal"
 const stringSerializer = {
     serialize: (value: never) => value,
@@ -129,11 +140,9 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
 
     const [ref, setRef] = makePersisted(
         // eslint-disable-next-line solid/reactivity
-        createSignal(
-            isMobile() ? "boltz_webapp_mobile" : "boltz_webapp_desktop",
-        ),
+        createSignal(defaultReferral()),
         {
-            name: config.network + "ref",
+            name: config.network + referralIdKey,
             ...stringSerializer,
         },
     );
@@ -304,10 +313,14 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
     void detectWebLNProvider().then((state: boolean) => setWebln(state));
     setWasmSupported(checkWasmSupported());
 
-    // check referral
-    const refParam = getUrlParam("ref");
-    if (refParam && refParam !== "") {
-        setRef(refParam);
+    if (!config.isPro) {
+        // Get the referral from the URL parameters if this is not pro
+        const refParam = getUrlParam("ref");
+        if (refParam && refParam !== "") {
+            setRef(refParam);
+        }
+    } else {
+        setRef(proReferral);
     }
 
     if (isEmbed()) {
@@ -341,7 +354,7 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
 
     // i18n
     createEffect(() => {
-        setI18n(i18nConfigured() || i18nUrl());
+        setI18n(detectLanguage(i18nConfigured() || i18nUrl()));
     });
     const dictLocale = createMemo(
         () => flatten(dict[i18n() || config.defaultLanguage]) as never,
@@ -426,4 +439,4 @@ const useGlobalContext = () => {
     return context;
 };
 
-export { useGlobalContext, GlobalProvider };
+export { useGlobalContext, GlobalProvider, defaultReferral };

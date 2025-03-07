@@ -4,6 +4,8 @@ import { ECPairInterface } from "ecpair";
 import { chooseUrl, config } from "../config";
 import { BTC, LN } from "../consts/Assets";
 import { SwapType } from "../consts/Enums";
+import { referralIdKey } from "../consts/LocalStorage";
+import { defaultReferral } from "../context/Global";
 import {
     ChainPairTypeTaproot,
     Pairs,
@@ -11,6 +13,7 @@ import {
     SubmarinePairTypeTaproot,
 } from "./boltzClient";
 import { ECPair } from "./ecpair";
+import { formatError } from "./errors";
 import { ChainSwap, ReverseSwap, SomeSwap, SubmarineSwap } from "./swapCreator";
 
 export const isIos = () =>
@@ -84,20 +87,36 @@ export const fetcher = async <T = unknown>(
     url: string,
     params?: Record<string, unknown>,
 ): Promise<T> => {
-    let opts = {};
+    // We cannot use the context here, so we get the data directly from local storage
+    const referral = localStorage.getItem(referralIdKey) || defaultReferral();
+    let opts: RequestInit = {
+        headers: {
+            referral,
+        },
+    };
+
     if (params) {
         opts = {
             method: "POST",
             headers: {
+                ...opts.headers,
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(params),
         };
     }
+
     const apiUrl = getApiUrl() + url;
     const response = await fetch(apiUrl, opts);
     if (!response.ok) {
-        return Promise.reject(response);
+        try {
+            const body = await response.json();
+            return Promise.reject(formatError(body));
+
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (e) {
+            return Promise.reject(response);
+        }
     }
     return (await response.json()) as T;
 };

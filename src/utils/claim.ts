@@ -48,6 +48,10 @@ const createAdjustedClaim = async <
     liquidNetwork?: LiquidNetwork,
     blindingKey?: Buffer,
 ) => {
+    if (swap.receiveAmount === 0) {
+        throw "amount to be received is 0";
+    }
+
     const asset = getRelevantAssetForSwap(swap);
 
     let inputSum = 0;
@@ -137,6 +141,64 @@ const claimReverseSwap = async (
     }
 };
 
+export const createTheirPartialChainSwapSignature = async (
+    swap: ChainSwap,
+): Promise<Awaited<ReturnType<typeof postChainSwapDetails>> | undefined> => {
+    // RSK claim transactions can't be signed cooperatively
+    if (swap.assetSend === RBTC) {
+        return undefined;
+    }
+
+    // Sign the claim transaction of the server
+    try {
+        const serverClaimDetails = await getChainSwapClaimDetails(swap.id);
+
+        const boltzClaimPublicKey = Buffer.from(
+            serverClaimDetails.publicKey,
+            "hex",
+        );
+        const theirClaimMusig = await createMusig(
+            parsePrivateKey(swap.refundPrivateKey),
+            boltzClaimPublicKey,
+        );
+        tweakMusig(
+            swap.assetSend,
+            theirClaimMusig,
+            SwapTreeSerializer.deserializeSwapTree(swap.lockupDetails.swapTree)
+                .tree,
+        );
+        theirClaimMusig.aggregateNonces([
+            [
+                boltzClaimPublicKey,
+                Buffer.from(serverClaimDetails.pubNonce, "hex"),
+            ],
+        ]);
+        theirClaimMusig.initializeSession(
+            Buffer.from(serverClaimDetails.transactionHash, "hex"),
+        );
+
+        return {
+            pubNonce: Buffer.from(theirClaimMusig.getPublicNonce()).toString(
+                "hex",
+            ),
+            partialSignature: Buffer.from(
+                theirClaimMusig.signPartial(),
+            ).toString("hex"),
+        };
+    } catch (err) {
+        if (err === "swap not eligible for a cooperative claim") {
+            log.debug(
+                `Backend already broadcast their claim for chain swap ${swap.id}`,
+            );
+            return undefined;
+        }
+
+        throw err;
+    }
+
+    return undefined;
+};
+
 const claimChainSwap = async (
     swap: ChainSwap,
     lockupTx: TransactionInterface,
@@ -191,75 +253,12 @@ const claimChainSwap = async (
         return claimTx;
     }
 
-    const createTheirPartialSignature = async (): Promise<
-        Awaited<ReturnType<typeof postChainSwapDetails>> | undefined
-    > => {
-        // RSK claim transactions can't be signed cooperatively
-        if (swap.assetSend === RBTC) {
-            return undefined;
-        }
-
-        // Sign the claim transaction of the server
-        try {
-            const serverClaimDetails = await getChainSwapClaimDetails(swap.id);
-
-            const boltzClaimPublicKey = Buffer.from(
-                serverClaimDetails.publicKey,
-                "hex",
-            );
-            const theirClaimMusig = await createMusig(
-                parsePrivateKey(swap.refundPrivateKey),
-                boltzClaimPublicKey,
-            );
-            tweakMusig(
-                swap.assetSend,
-                theirClaimMusig,
-                SwapTreeSerializer.deserializeSwapTree(
-                    swap.lockupDetails.swapTree,
-                ).tree,
-            );
-            theirClaimMusig.aggregateNonces([
-                [
-                    boltzClaimPublicKey,
-                    Buffer.from(serverClaimDetails.pubNonce, "hex"),
-                ],
-            ]);
-            theirClaimMusig.initializeSession(
-                Buffer.from(serverClaimDetails.transactionHash, "hex"),
-            );
-
-            return {
-                pubNonce: Buffer.from(
-                    theirClaimMusig.getPublicNonce(),
-                ).toString("hex"),
-                partialSignature: Buffer.from(
-                    theirClaimMusig.signPartial(),
-                ).toString("hex"),
-            };
-        } catch (err) {
-            if (typeof err.json !== "function") {
-                throw err;
-            }
-
-            const errMessage = (await err.json()).error;
-            if (errMessage !== "swap not eligible for a cooperative claim") {
-                throw err;
-            }
-
-            log.debug(
-                `backend already broadcast their claim for chain swap ${swap.id}`,
-            );
-        }
-
-        return undefined;
-    };
-
     try {
         // Post our partial signature to ask for theirs
         const theirPartial = await postChainSwapDetails(
             swap.id,
             swap.preimage,
-            await createTheirPartialSignature(),
+            await createTheirPartialChainSwapSignature(swap),
             {
                 index: 0,
                 transaction: claimTx.toHex(),

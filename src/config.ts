@@ -40,6 +40,7 @@ type Asset = {
     };
     network?: {
         chainName: string;
+        chainId: number;
         rpcUrls: string[];
         nativeCurrency: {
             name: string;
@@ -62,6 +63,7 @@ export type Config = {
     isBoltzClient?: boolean;
     boltzClientApiUrl?: string;
     isBeta?: boolean;
+    isPro?: boolean;
     assets?: Record<string, Asset>;
     torUrl?: string;
 } & typeof defaults;
