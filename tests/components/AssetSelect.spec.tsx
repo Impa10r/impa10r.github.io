@@ -81,8 +81,8 @@ describe("AssetSelect", () => {
         signals.setAssetSelect(true);
         signals.setAssetSelected(Side.Send);
 
-        const setAssetSend = jest.spyOn(signals, "setAssetSend");
-        const setAssetReceive = jest.spyOn(signals, "setAssetReceive");
+        const setAssetSend = vi.spyOn(signals, "setAssetSend");
+        const setAssetReceive = vi.spyOn(signals, "setAssetReceive");
 
         const btcButton = container.children[0].children[3];
         fireEvent.click(btcButton);
@@ -157,4 +157,30 @@ describe("AssetSelect", () => {
             expect(signals.onchainAddress()).toEqual(address);
         },
     );
+
+    test("should clear onchain address when assetReceive changes", async () => {
+        render(
+            () => (
+                <>
+                    <TestComponent />
+                    <SelectAsset />
+                </>
+            ),
+            { wrapper: contextWrapper },
+        );
+
+        const initialAddress =
+            "el1qqgdvkht3g2puwdwxqzfrekef8anygnvs093hntsz63f42gj5m0zksfvvvsss79pv7le474snv6n2slklg7ujvth99naldh9cy";
+
+        signals.setOnchainAddress(initialAddress);
+        signals.setAssetSelect(true);
+        signals.setAssetSelected(Side.Receive);
+        signals.setAssetSend(BTC);
+        signals.setAssetReceive(LBTC);
+
+        fireEvent.click(await screen.findByTestId(`select-${BTC}`));
+
+        expect(signals.assetReceive()).toEqual(BTC);
+        expect(signals.onchainAddress()).toBe("");
+    });
 });

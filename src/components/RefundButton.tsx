@@ -5,10 +5,9 @@ import { Network as LiquidNetwork } from "liquidjs-lib/src/networks";
 import log from "loglevel";
 import {
     Accessor,
-    Match,
     Setter,
     Show,
-    Switch,
+    createEffect,
     createResource,
     createSignal,
 } from "solid-js";
@@ -17,7 +16,7 @@ import { ChainSwap, SubmarineSwap } from "src/utils/swapCreator";
 import RefundEta from "../components/RefundEta";
 import { RBTC } from "../consts/Assets";
 import { SwapType } from "../consts/Enums";
-import { useGlobalContext } from "../context/Global";
+import { deriveKeyFn, useGlobalContext } from "../context/Global";
 import { usePayContext } from "../context/Pay";
 import { useWeb3Signer } from "../context/Web3";
 import {
@@ -109,10 +108,11 @@ export const RefundEvm = (props: {
     );
 };
 
-const RefundButton = (props: {
+export const RefundBtc = (props: {
     swap: Accessor<SubmarineSwap | ChainSwap>;
     setRefundTxId?: Setter<string>;
     buttonOverride?: string;
+    deriveKeyFn?: deriveKeyFn;
 }) => {
     const {
         getSwap,
@@ -120,9 +120,12 @@ const RefundButton = (props: {
         setRefundAddress,
         refundAddress,
         notify,
+        externalBroadcast,
         t,
+        deriveKey,
     } = useGlobalContext();
     const { setSwap } = usePayContext();
+
     const [timeoutEta, setTimeoutEta] = createSignal<number | null>(null);
     const [timeoutBlockheight, setTimeoutBlockheight] = createSignal<
         number | null
@@ -131,44 +134,43 @@ const RefundButton = (props: {
     const [valid, setValid] = createSignal<boolean>(false);
     const [refundRunning, setRefundRunning] = createSignal<boolean>(false);
 
-    const refundAddressChange = (evt: InputEvent, asset: string) => {
-        const input = evt.currentTarget as HTMLInputElement;
-        const inputValue = input.value.trim();
+    createEffect(() => {
+        const asset = props.swap()?.assetSend;
+        if (!asset) return;
 
         const lockupAddress =
             props.swap().type === SwapType.Submarine
                 ? (props.swap() as SubmarineSwap).address
                 : (props.swap() as ChainSwap).lockupDetails.lockupAddress;
 
-        if (inputValue === lockupAddress) {
+        if (refundAddress() === lockupAddress) {
             log.debug("refunds to lockup address are blocked");
-            input.setCustomValidity("lockup address");
-            return false;
+            setValid(false);
+        } else {
+            try {
+                getAddress(asset).toOutputScript(
+                    refundAddress(),
+                    getNetwork(asset) as LiquidNetwork,
+                );
+                setValid(true);
+            } catch (e) {
+                log.debug("parsing refund address failed", e);
+                setValid(false);
+            }
         }
-        try {
-            getAddress(asset).toOutputScript(
-                inputValue,
-                getNetwork(asset) as LiquidNetwork,
-            );
-            input.setCustomValidity("");
-            setRefundAddress(inputValue);
-            return true;
-        } catch (e) {
-            log.debug("parsing refund address failed", e);
-            input.setCustomValidity("invalid address");
-        }
-
-        return false;
-    };
+    });
 
     const refundAction = async () => {
         setRefundRunning(true);
 
         try {
             const res = await refund(
+                props.deriveKeyFn || deriveKey,
                 props.swap(),
                 refundAddress(),
                 lockupTransaction(),
+                true,
+                externalBroadcast(),
             );
 
             // save refundTx into swaps json and set it to the current swap
@@ -183,6 +185,8 @@ const RefundButton = (props: {
             if (props.setRefundTxId) {
                 props.setRefundTxId(res.refundTx);
             }
+
+            setRefundAddress("");
         } catch (error) {
             log.warn("refund failed", error);
             if (typeof error === "string") {
@@ -234,6 +238,70 @@ const RefundButton = (props: {
         return transactionToRefund;
     });
 
+    const buttonMessage = () => {
+        if (lockupTransaction.state == "errored") {
+            return t("no_lockup_transaction");
+        }
+        if (valid() || !refundAddress() || !props.swap()) {
+            return t("refund");
+        }
+        return t("invalid_address", { asset: props.swap()?.assetSend });
+    };
+
+    return (
+        <Show
+            when={
+                lockupTransaction.state === "ready" ||
+                lockupTransaction.state == "unresolved" ||
+                lockupTransaction.state == "errored"
+            }
+            fallback={<LoadingSpinner />}>
+            <Show when={timeoutEta() > 0 || timeoutBlockheight() > 0}>
+                <RefundEta
+                    timeoutEta={timeoutEta}
+                    timeoutBlockHeight={timeoutBlockheight}
+                />
+            </Show>
+            <h3 style={{ color: "#fff" }}>
+                {props.swap()
+                    ? t("refund_address_header", {
+                          asset: props.swap()?.assetSend,
+                      })
+                    : t("refund_address_header_no_asset")}
+            </h3>
+            <input
+                data-testid="refundAddress"
+                id="refundAddress"
+                disabled={lockupTransaction.state == "errored"}
+                value={refundAddress()}
+                onInput={(e) => setRefundAddress(e.target.value.trim())}
+                type="text"
+                name="refundAddress"
+                placeholder={
+                    props.swap()
+                        ? t("onchain_address", {
+                              asset: props.swap()?.assetSend,
+                          })
+                        : t("onchain_address_no_asset")
+                }
+            />
+            <button
+                data-testid="refundButton"
+                class="btn"
+                disabled={!valid() || refundRunning()}
+                onClick={() => refundAction()}>
+                {props.buttonOverride ?? buttonMessage()}
+            </button>
+        </Show>
+    );
+};
+
+const RefundButton = (props: {
+    swap: Accessor<SubmarineSwap | ChainSwap>;
+    setRefundTxId?: Setter<string>;
+    buttonOverride?: string;
+    deriveKeyFn?: deriveKeyFn;
+}) => {
     const [preimageHash] = createResource(async () => {
         return (await decodeInvoice((props.swap() as SubmarineSwap).invoice))
             .preimageHash;
@@ -295,61 +363,7 @@ const RefundButton = (props: {
                     </Show>
                 </Show>
             }>
-            <Switch>
-                <Match
-                    when={
-                        lockupTransaction.state === "ready" ||
-                        lockupTransaction.state == "unresolved"
-                    }>
-                    <Show when={timeoutEta() > 0 || timeoutBlockheight() > 0}>
-                        <RefundEta
-                            timeoutEta={timeoutEta}
-                            timeoutBlockHeight={timeoutBlockheight}
-                        />
-                    </Show>
-                    <h3 style={{ color: "#fff" }}>
-                        {props.swap()
-                            ? t("refund_address_header", {
-                                  asset: props.swap()?.assetSend,
-                              })
-                            : t("refund_address_header_no_asset")}
-                    </h3>
-                    <input
-                        data-testid="refundAddress"
-                        id="refundAddress"
-                        disabled={props.swap() === null}
-                        onInput={(e) =>
-                            setValid(
-                                refundAddressChange(e, props.swap()?.assetSend),
-                            )
-                        }
-                        type="text"
-                        name="refundAddress"
-                        placeholder={
-                            props.swap()
-                                ? t("onchain_address", {
-                                      asset: props.swap()?.assetSend,
-                                  })
-                                : t("onchain_address_no_asset")
-                        }
-                    />
-                    <button
-                        data-testid="refundButton"
-                        class="btn"
-                        disabled={!valid() || refundRunning()}
-                        onClick={() => refundAction()}>
-                        {props.buttonOverride ?? t("refund")}
-                    </button>
-                </Match>
-                <Match when={lockupTransaction.state === "pending"}>
-                    <LoadingSpinner />
-                </Match>
-                <Match when={lockupTransaction.state === "errored"}>
-                    <button class="btn" disabled={true}>
-                        {t("no_lockup_transaction")}
-                    </button>
-                </Match>
-            </Switch>
+            <RefundBtc {...props} />
         </Show>
     );
 };

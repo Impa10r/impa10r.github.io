@@ -5,7 +5,7 @@ import { Transaction as LiquidTransaction } from "liquidjs-lib";
 
 import { config } from "../config";
 import { SwapType } from "../consts/Enums";
-import { fetcher } from "./helper";
+import { broadcastToExplorer, fetcher } from "./helper";
 import { validateInvoiceForOffer } from "./invoice";
 
 const cooperativeErrorMessage = "cooperative signatures for swaps are disabled";
@@ -165,6 +165,20 @@ type ChainSwapTransaction = {
 };
 
 type TransactionInterface = Transaction | LiquidTransaction;
+
+export type RescuableSwap = {
+    id: string;
+    type: SwapType;
+    tree: SwapTree;
+    status: string;
+    symbol: string;
+    keyIndex: number;
+    blindingKey?: string;
+    lockupAddress: string;
+    serverPublicKey: string;
+    transaction?: { id: string; vout: number };
+    createdAt: number;
+};
 
 export const getPairs = async (): Promise<Pairs> => {
     const [submarine, reverse, chain] = await Promise.all([
@@ -352,10 +366,36 @@ export const getNodeStats = () =>
 export const getContracts = () =>
     fetcher<Record<string, Contracts>>("/v2/chain/contracts");
 
-export const broadcastTransaction = (asset: string, txHex: string) =>
-    fetcher<{ id: string }>(`/v2/chain/${asset}/transaction`, {
-        hex: txHex,
-    });
+export const broadcastTransaction = async (
+    asset: string,
+    txHex: string,
+    externalBroadcast: boolean = false,
+): Promise<{
+    id: string;
+}> => {
+    const promises: Promise<{
+        id: string;
+    }>[] = [
+        fetcher<{ id: string }>(`/v2/chain/${asset}/transaction`, {
+            hex: txHex,
+        }),
+    ];
+
+    if (externalBroadcast) {
+        promises.push(broadcastToExplorer(asset, txHex));
+    }
+
+    const results = await Promise.allSettled(promises);
+    const successfulResult = results.find(
+        (result) => result.status === "fulfilled",
+    );
+    if (successfulResult) {
+        return (successfulResult as PromiseFulfilledResult<{ id: string }>)
+            .value;
+    }
+
+    throw (results[0] as PromiseRejectedResult).reason;
+};
 
 export const getLockupTransaction = async (
     id: string,
@@ -446,6 +486,9 @@ export const acceptChainSwapNewQuote = (id: string, amount: number) =>
 
 export const getSubmarinePreimage = (id: string) =>
     fetcher<{ preimage: string }>(`/v2/swap/submarine/${id}/preimage`);
+
+export const getRescuableSwaps = (xpub: string) =>
+    fetcher<RescuableSwap[]>(`/v2/swap/rescue`, { xpub });
 
 export {
     Pairs,

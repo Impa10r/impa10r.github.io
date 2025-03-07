@@ -5,7 +5,7 @@ import { chooseUrl, config } from "../config";
 import { BTC, LN } from "../consts/Assets";
 import { SwapType } from "../consts/Enums";
 import { referralIdKey } from "../consts/LocalStorage";
-import { defaultReferral } from "../context/Global";
+import { defaultReferral, deriveKeyFn } from "../context/Global";
 import {
     ChainPairTypeTaproot,
     Pairs,
@@ -121,13 +121,47 @@ export const fetcher = async <T = unknown>(
     return (await response.json()) as T;
 };
 
-export const parsePrivateKey = (privateKey: string): ECPairInterface => {
+export const parsePrivateKey = (
+    deriveKey: deriveKeyFn,
+    keyIndex?: number,
+    privateKeyHex?: string,
+): ECPairInterface => {
+    if (keyIndex !== undefined) {
+        return deriveKey(keyIndex);
+    }
+
     try {
-        return ECPair.fromPrivateKey(Buffer.from(privateKey, "hex"));
+        return ECPair.fromPrivateKey(Buffer.from(privateKeyHex, "hex"));
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
         // When the private key is not HEX, we try to decode it as WIF
-        return ECPair.fromWIF(privateKey);
+        return ECPair.fromWIF(privateKeyHex);
     }
+};
+
+// posts transaction to a block explorer
+export const broadcastToExplorer = async (
+    asset: string,
+    txHex: string,
+): Promise<{ id: string }> => {
+    const basePath = chooseUrl(config.assets[asset].blockExplorerUrl);
+    const response = await fetch(`${basePath}/api/tx`, {
+        method: "POST",
+        body: txHex,
+    });
+
+    if (!response.ok) {
+        try {
+            const body = await response.json();
+            throw formatError(body);
+        } catch {
+            // If parsing JSON fails, throw a generic error with status text
+            throw response.statusText;
+        }
+    }
+
+    return {
+        id: await response.text(),
+    };
 };

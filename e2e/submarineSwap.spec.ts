@@ -5,11 +5,14 @@ import {
     generateBitcoinBlock,
     generateInvoiceLnd,
     lookupInvoiceLnd,
+    verifyRescueFile,
+    waitForNodesToSync,
 } from "./utils";
 
 test.describe("Submarine swap", () => {
     test.beforeEach(async () => {
         await generateBitcoinBlock();
+        await waitForNodesToSync();
     });
 
     test("Submarine swap BTC/BTC", async ({ page }) => {
@@ -25,7 +28,7 @@ test.describe("Submarine swap", () => {
         await inputReceiveAmount.fill(receiveAmount);
 
         const inputSendAmount = page.locator("input[data-testid='sendAmount']");
-        const sendAmount = "0.01005302";
+        const sendAmount = "0.01001302";
         await expect(inputSendAmount).toHaveValue(sendAmount);
 
         const invoiceInput = page.locator("textarea[data-testid='invoice']");
@@ -36,8 +39,7 @@ test.describe("Submarine swap", () => {
         );
         await buttonCreateSwap.click();
 
-        const skipDownload = page.getByText("Skip download");
-        await skipDownload.click();
+        await verifyRescueFile(page);
 
         const copyAddressButton = page.getByText("address");
         expect(copyAddressButton).toBeDefined();
@@ -86,6 +88,6 @@ test.describe("Submarine swap", () => {
 
         await page.getByTestId("create-swap-button").click();
         // When we can click that button, the swap was created
-        await page.getByRole("button", { name: "Skip download" }).click();
+        await verifyRescueFile(page);
     });
 });

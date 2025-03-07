@@ -2,8 +2,7 @@
     "network": "testnet",
     "loglevel": "debug",
     "apiUrl": {
-        "normal": "http://127.0.0.1:9001",
-        "wsFallback": "http://127.0.0.1:9004"
+        "normal": "https://api.testnet.boltz.exchange"
     },
     "assets": {
         "BTC": {
