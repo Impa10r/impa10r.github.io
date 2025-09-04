@@ -14,9 +14,9 @@ import {
 import type { Accessor, JSX, Setter } from "solid-js";
 
 import { config } from "../config";
+import { LBTC } from "../consts/Assets";
 import { Denomination, UrlParam } from "../consts/Enums";
 import { referralIdKey } from "../consts/LocalStorage";
-import { swapStatusFinal } from "../consts/SwapStatus";
 import { detectLanguage } from "../i18n/detect";
 import type { DictKey } from "../i18n/i18n";
 import dict from "../i18n/i18n";
@@ -29,11 +29,12 @@ import { deleteOldLogs, injectLogWriter } from "../utils/logs";
 import { migrateStorage } from "../utils/migration";
 import type { RescueFile } from "../utils/rescueFile";
 import { deriveKey, generateRescueFile, getXpub } from "../utils/rescueFile";
-import type { SomeSwap, SubmarineSwap } from "../utils/swapCreator";
+import type { SomeSwap } from "../utils/swapCreator";
 import { getUrlParam, isEmbed, resetUrlParam } from "../utils/urlParams";
 import { checkWasmSupported } from "../utils/wasmSupport";
 import { detectWebLNProvider } from "../utils/webln";
 
+export const liquidUncooperativeExtra = 3;
 const proReferral = "pro";
 
 export type deriveKeyFn = (index: number) => ECPairInterface;
@@ -108,9 +109,6 @@ export type GlobalContextType = {
     setRdns: (address: string, rdns: string) => Promise<string>;
     getRdnsAll: () => Promise<{ address: string; rdns: string }[]>;
     getRdnsForAddress: (address: string) => Promise<string | null>;
-
-    externalBroadcast: Accessor<boolean>;
-    setExternalBroadcast: Setter<boolean>;
 
     newKey: newKeyFn;
     deriveKey: deriveKeyFn;
@@ -292,9 +290,28 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
         void audio.play();
     };
 
+    const addUncooperativeExtra = (pairs: Pairs) => {
+        Object.values(pairs.chain).forEach((assetPairs) => {
+            if (assetPairs[LBTC]) {
+                assetPairs[LBTC].fees.minerFees.user.claim +=
+                    liquidUncooperativeExtra;
+            }
+        });
+
+        Object.values(pairs.reverse).forEach((assetPairs) => {
+            if (assetPairs[LBTC]) {
+                assetPairs[LBTC].fees.minerFees.claim +=
+                    liquidUncooperativeExtra;
+            }
+        });
+    };
+
     const fetchPairs = async () => {
         try {
             const data = await getPairs();
+
+            addUncooperativeExtra(data);
+
             log.debug("getpairs", data);
             setOnline(true);
             setPairs(data);
@@ -312,6 +329,9 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
                     referral: regularReferral(),
                 },
             });
+
+            addUncooperativeExtra(data);
+
             log.debug("Regular pairs", data);
             setRegularPairs(data);
         } catch (error) {
@@ -375,14 +395,17 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
     };
 
     const updateSwapStatus = async (id: string, newStatus: string) => {
-        if (swapStatusFinal.includes(newStatus)) {
-            const swap = await getSwap<SubmarineSwap & { status: string }>(id);
+        const swap = await getSwap<SomeSwap & { status: string }>(id);
 
-            if (swap.status !== newStatus) {
-                swap.status = newStatus;
-                await setSwapStorage(swap);
-                return true;
-            }
+        if (swap === undefined || swap === null) {
+            log.warn(`cannot update swap ${id} status: not found`);
+            return false;
+        }
+
+        if (swap.status !== newStatus) {
+            swap.status = newStatus;
+            await setSwapStorage(swap);
+            return true;
         }
 
         return false;
@@ -460,14 +483,6 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
         values?: Record<string, unknown>,
     ) => string;
 
-    const [externalBroadcast, setExternalBroadcast] = makePersisted(
-        // eslint-disable-next-line solid/reactivity
-        createSignal<boolean>(false),
-        {
-            name: "externalBroadcast",
-        },
-    );
-
     return (
         <GlobalContext.Provider
             value={{
@@ -529,9 +544,6 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
                 getRdnsAll,
                 hardwareDerivationPath,
                 setHardwareDerivationPath,
-
-                externalBroadcast,
-                setExternalBroadcast,
 
                 newKey,
                 rescueFile,

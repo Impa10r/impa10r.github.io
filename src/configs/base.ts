@@ -1,8 +1,8 @@
 import type log from "loglevel";
 
 type Asset = {
-    blockExplorerUrl?: Url;
-    blockExplorerApis?: Url[];
+    blockExplorerUrl?: ExplorerUrl;
+    blockExplorerApis?: ExplorerUrl[];
 
     rifRelay?: string;
     contracts?: {
@@ -22,9 +22,19 @@ type Asset = {
     };
 };
 
-type Url = {
+export enum Explorer {
+    Mempool = "mempool",
+    Esplora = "esplora",
+    Blockscout = "blockscout",
+}
+
+export type Url = {
     normal: string;
     tor?: string;
+};
+
+export type ExplorerUrl = Url & {
+    id: Explorer;
 };
 
 export type Config = {
@@ -54,7 +64,7 @@ const defaults = {
     docsUrl: "https://docs.boltz.exchange",
     blogUrl: "https://blog.boltz.exchange",
     nostrUrl:
-        "https://snort.social/p/npub1psm37hke2pmxzdzraqe3cjmqs28dv77da74pdx8mtn5a0vegtlas9q8970",
+        "https://primal.net/p/nprofile1qqsqcdcltmv4qanpx3p7svcufdsg9rkk00x7l2sknra4e6whkv59l7clgcdzj",
     statusUrl: "https://status.boltz.exchange",
     youtubeUrl:
         "https://www.youtube.com/playlist?list=PLkqOa9SGBeZfAEHvKkGKjeRIASeu6bNO3",
