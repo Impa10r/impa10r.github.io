@@ -15,7 +15,7 @@ const config = {
     loglevel: "debug",
     apiUrl: {
         normal: "https://api.middleway.space",
-        tor: "http://boltzzzbnus4m7mta3cxmflnps4fp7dueu2tgurstbvrbt6xswzcocyd.onion/api",
+        tor: "http://middlwayksj5gak7pgaag32kcslzkjrpois57qtquiydpaqpy5fhzhqd.onion",
     },
     assets: {
         BTC: {
