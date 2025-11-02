@@ -1,6 +1,6 @@
 {
     "name": "boltz-frontend",
-    "version": "1.8.5",
+    "version": "1.8.6",
     "description": "Boltz Exchange, Atomic Swaps, Web App",
     "scripts": {
         "start": "npm run regtest && vite",
@@ -36,6 +36,7 @@
         "@eslint/js": "^9.37.0",
         "@playwright/test": "^1.56.0",
         "@solidjs/testing-library": "^0.8.10",
+        "@testing-library/jest-dom": "^6.9.1",
         "@testing-library/user-event": "^14.6.1",
         "@trivago/prettier-plugin-sort-imports": "^5.2.2",
         "@types/node": "^24.7.0",
@@ -45,6 +46,7 @@
         "eslint-plugin-solid": "^0.14.5",
         "git-cliff": "^2.10.1",
         "globals": "^16.4.0",
+        "jsdom": "^27.1.0",
         "prettier": "^3.6.2",
         "sass-embedded": "^1.93.2",
         "svgo": "^4.0.0",
