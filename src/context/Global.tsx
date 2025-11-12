@@ -84,6 +84,8 @@ export type GlobalContextType = {
     setAudioNotification: Setter<boolean>;
     browserNotification: Accessor<boolean>;
     setBrowserNotification: Setter<boolean>;
+    privacyMode: Accessor<boolean>;
+    setPrivacyMode: Setter<boolean>;
     // functions
     t: tFn;
     notify: notifyFn;
@@ -116,6 +118,11 @@ export type GlobalContextType = {
     setRescueFile: Setter<RescueFile | null>;
     rescueFileBackupDone: Accessor<boolean>;
     setRescueFileBackupDone: Setter<boolean>;
+
+    // UNIX timestamp when a backup file was last imported
+    // Used to prevent auto-claiming swaps that were created before the backup
+    backupImportTimestamp: Accessor<number | undefined>;
+    setBackupImportTimestamp: Setter<number | undefined>;
 };
 
 const regularReferral = () =>
@@ -407,7 +414,10 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
         return false;
     };
 
-    const clearSwaps = () => swapsForage.clear();
+    const clearSwaps = async () => {
+        await swapsForage.clear();
+        setBackupImportTimestamp(undefined);
+    };
 
     const rdnsForage = localforage.createInstance({
         name: config.network + "rdns",
@@ -452,11 +462,27 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
         },
     );
 
+    const [privacyMode, setPrivacyMode] = makePersisted(
+        // eslint-disable-next-line solid/reactivity
+        createSignal<boolean>(false),
+        {
+            name: "privacyMode",
+        },
+    );
+
     const [hardwareDerivationPath, setHardwareDerivationPath] = makePersisted(
         // eslint-disable-next-line solid/reactivity
         createSignal<string>(""),
         {
             name: "hardwareDerivationPath",
+        },
+    );
+
+    const [backupImportTimestamp, setBackupImportTimestamp] = makePersisted(
+        // eslint-disable-next-line solid/reactivity
+        createSignal<number>(),
+        {
+            name: "backupImportTimestamp",
         },
     );
 
@@ -513,6 +539,8 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
                 setAudioNotification,
                 browserNotification,
                 setBrowserNotification,
+                privacyMode,
+                setPrivacyMode,
                 // functions
                 t,
                 notify,
@@ -543,6 +571,9 @@ const GlobalProvider = (props: { children: JSX.Element }) => {
 
                 rescueFileBackupDone,
                 setRescueFileBackupDone,
+
+                backupImportTimestamp,
+                setBackupImportTimestamp,
             }}>
             {props.children}
         </GlobalContext.Provider>
