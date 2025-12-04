@@ -6,6 +6,7 @@ import {
     BsTwitter,
     BsYoutube,
 } from "solid-icons/bs";
+import { Show } from "solid-js";
 
 import nostr from "../assets/nostr.svg";
 import { config } from "../config";
@@ -84,6 +85,12 @@ const Footer = () => {
                 <a target="_blank" href={config.regtestUrl}>
                     {t("regtest")}
                 </a>
+                <Show when={config.torUrl}>
+                    |{" "}
+                    <a target="_blank" href={config.torUrl}>
+                        {t("onion")}
+                    </a>
+                </Show>
             </p>
             <p class="legal-nav">
                 <a href="/terms">{t("terms")}</a>
