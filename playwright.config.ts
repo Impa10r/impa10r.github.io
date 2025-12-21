@@ -14,11 +14,11 @@ export default defineConfig({
     /* Opt out of parallel tests on CI. */
     workers: process.env.CI ? 1 : undefined,
     /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-    reporter: "html",
+    reporter: process.env.CI ? "blob" : "html",
     /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
     use: {
         /* Base URL to use in actions like `await page.goto('/')`. */
-        baseURL: "https://localhost:5173",
+        baseURL: "http://localhost:4173",
         ignoreHTTPSErrors: true,
 
         /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
@@ -31,6 +31,7 @@ export default defineConfig({
     projects: [
         {
             name: "chromium",
+            fullyParallel: true,
             use: {
                 ...devices["Desktop Chrome"],
                 contextOptions: {
@@ -49,8 +50,8 @@ export default defineConfig({
     ],
 
     webServer: {
-        command: "npm run start",
-        port: 5173,
+        command: "npm run regtest && npm run build && npx vite preview",
+        port: 4173,
         reuseExistingServer: !process.env.CI,
         stdout: "pipe",
         stderr: "pipe",
